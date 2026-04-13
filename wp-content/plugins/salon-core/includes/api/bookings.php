@@ -13,6 +13,21 @@ add_action('rest_api_init', function () {
     'methods' => 'POST',
     'callback' => 'vp_complete_booking'
     ]);
+     register_rest_route('vp/v1', '/admin/bookings', [
+    'methods' => 'GET',
+    'callback' => 'vp_get_admin_bookings',
+    'permission_callback' => 'vp_admin_permission',
+    ]);
+    register_rest_route('vp/v1', '/admin/booking-status', [
+    'methods' => 'POST',
+    'callback' => 'vp_update_booking_status',
+    'permission_callback' => 'vp_admin_permission'
+    ]);
+    register_rest_route('vp/v1', '/admin/calendar', [
+    'methods' => 'GET',
+    'callback' => 'vp_get_calendar_data',
+    'permission_callback' => 'vp_admin_permission',
+    ]);
 
 });
 
@@ -83,4 +98,58 @@ function vp_create_booking($request) {
     ]);
 
     return ['success' => true];
+}
+
+function vp_get_admin_bookings() {
+  global $wpdb;
+
+  $results = $wpdb->get_results("
+    SELECT b.*, s.name as service_name, st.name as staff_name
+    FROM {$wpdb->prefix}bookings b
+    LEFT JOIN {$wpdb->prefix}services s ON b.service_id = s.id
+    LEFT JOIN {$wpdb->prefix}staff st ON b.staff_id = st.id
+    ORDER BY b.id DESC
+  ");
+
+  return [
+    'success' => true,
+    'data' => $results
+  ];
+}
+
+function vp_update_booking_status($req) {
+  global $wpdb;
+
+  $id = intval($req['id']);
+  $status = sanitize_text_field($req['status']);
+
+  $wpdb->update(
+    "{$wpdb->prefix}bookings",
+    ['status' => $status],
+    ['id' => $id]
+  );
+
+  return ['success' => true];
+}
+
+function vp_get_calendar_data() {
+  global $wpdb;
+
+  $results = $wpdb->get_results("
+    SELECT 
+      b.id,
+      b.booking_date,
+      b.booking_time,
+      b.status,
+      s.name as service_name,
+      st.name as staff_name
+    FROM {$wpdb->prefix}bookings b
+    LEFT JOIN {$wpdb->prefix}services s ON b.service_id = s.id
+    LEFT JOIN {$wpdb->prefix}staff st ON b.staff_id = st.id
+  ");
+
+  return [
+    'success' => true,
+    'data' => $results
+  ];
 }

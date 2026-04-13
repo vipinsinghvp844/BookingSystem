@@ -126,7 +126,9 @@ document.addEventListener("DOMContentLoaded", function () {
   initLucide();
   initDashboard();
   initServicesPage();
-  renderCalendar();
+  // renderCalendar();
+  loadBookings();
+  loadCalendar();
 });
 
 function initLucide() {
@@ -418,30 +420,132 @@ function initServicesPage() {
   }
 }
 
-/* ================= CALENDAR ================= */
 
-function renderCalendar() {
+/* ====================================== CALENDAR ================= */
 
-  const grid = document.getElementById("calendarGrid");
-  if (!grid) return;
+function loadCalendar() {
 
-  grid.innerHTML = "";
-
-  for (let i = 1; i <= 35; i++) {
-
-    const cell = document.createElement("div");
-    cell.className = "calendar-cell";
-
-    cell.innerHTML = `
-      <div class="calendar-date">${i}</div>
-      <div class="calendar-events">
-        ${i % 7 < 5 ? `
-          <div class="event-dot"></div>
-          <div class="event-dot light"></div>
-        ` : ""}
-      </div>
-    `;
-
-    grid.appendChild(cell);
+  fetch("/e-commerce/wp-json/vp/v1/admin/calendar", {
+      method: "GET",
+       headers: {
+    "Content-Type": "application/json",
+    "X-WP-Nonce": SALON_ADMIN.nonce
   }
+    })
+    .then(res => res.json())
+    .then(res => {
+
+      const bookings = res.data;
+      console.log(bookings,"booking");
+      
+      const grid = document.getElementById("calendarGrid");
+
+      if (!grid) return;
+
+      grid.innerHTML = "";
+
+      // current month
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = date.getMonth();
+
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      for (let i = 1; i <= daysInMonth; i++) {
+
+        const dayStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+
+        const dayBookings = bookings.filter(b => b.booking_date === dayStr);
+
+        let eventsHTML = "";
+
+        dayBookings.forEach(b => {
+          eventsHTML += `
+            <div class="event ${b.status}">
+              ${b.booking_time} - ${b.service_name}
+            </div>
+          `;
+        });
+
+        grid.innerHTML += `
+          <div class="calendar-day">
+            <div class="day-number">${i}</div>
+            <div class="events">
+              ${eventsHTML}
+            </div>
+          </div>
+        `;
+      }
+
+    });
+}
+
+
+
+/* ================= BOOKINGS PAGE ================= */
+
+function loadBookings() {
+
+  fetch("/e-commerce/wp-json/vp/v1/admin/bookings", {
+      method: "GET",
+      headers: {
+    "Content-Type": "application/json",
+    "X-WP-Nonce": SALON_ADMIN.nonce
+  }
+    })
+    .then(res => res.json())
+    .then(res => {
+
+      const list = document.getElementById("bookingList");
+      if (!list) return;
+
+      list.innerHTML = "";
+
+      res.data.forEach(b => {
+
+        list.innerHTML += `
+          <div class="booking-item">
+            
+            <div class="booking-top">
+              <div>
+                <h3>${b.service_name || "Service"}</h3>
+                <p>${b.customer_name || "Customer"}</p>
+              </div>
+
+              <select onchange="updateStatus(${b.id}, this.value)" class="status-select">
+                <option value="pending" ${b.status=='pending'?'selected':''}>Pending</option>
+                <option value="confirmed" ${b.status=='confirmed'?'selected':''}>Confirmed</option>
+                <option value="cancelled" ${b.status=='cancelled'?'selected':''}>Cancelled</option>
+              </select>
+
+            </div>
+
+            <div class="booking-meta">
+              <span>📅 ${b.booking_date}</span>
+              <span>⏰ ${b.booking_time}</span>
+              <span>💰 ₹${b.amount || 0}</span>
+            </div>
+
+          </div>
+        `;
+
+      });
+
+    });
+}
+
+function updateStatus(id, status) {
+
+  fetch("/e-commerce/wp-json/vp/v1/admin/booking-status", {
+    method: "POST",
+    headers: {
+    "Content-Type": "application/json",
+    "X-WP-Nonce": SALON_ADMIN.nonce
+  },
+    body: JSON.stringify({ id, status })
+  })
+  .then(() => {
+    loadBookings();
+  });
+
 }

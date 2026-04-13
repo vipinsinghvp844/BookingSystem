@@ -18,6 +18,7 @@ add_action('admin_menu', function () {
         'manage_options',
         'salon-dashboard',
         'salon_admin_dashboard_page',
+        'dashicons-chart-line',
     );
     add_submenu_page(
         'salon-dashboard',

@@ -35,9 +35,9 @@ add_action('rest_api_init', function () {
         'permission_callback' => 'vp_admin_permission',
     ]);
 });
-function vp_admin_permission() {
-    return current_user_can('manage_options');
-}
+// function vp_admin_permission() {
+//     return current_user_can('manage_options');
+// }
 
 
 

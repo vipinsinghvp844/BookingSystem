@@ -93,7 +93,9 @@ add_action('admin_enqueue_scripts', function ($hook) {
 });
 
 
-
+function vp_admin_permission() {
+    return current_user_can('manage_options');
+}
 
 
 

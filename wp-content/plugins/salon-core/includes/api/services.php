@@ -34,10 +34,28 @@ add_action('rest_api_init', function () {
         'callback' => 'vp_delete_service',
         'permission_callback' => 'vp_admin_permission',
     ]);
+    register_rest_route('vp/v1', '/upload', [
+        'methods' => 'POST',
+        'callback' => 'vp_upload_file',
+        'permission_callback' => 'vp_admin_permission'
+    ]);
 });
-// function vp_admin_permission() {
-//     return current_user_can('manage_options');
-// }
+function vp_upload_file() {
+
+  if (!function_exists('wp_handle_upload')) {
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+  }
+
+  $file = $_FILES['file'];
+
+  $uploaded = wp_handle_upload($file, ['test_form' => false]);
+
+  if (isset($uploaded['url'])) {
+    return ['success' => true, 'url' => $uploaded['url']];
+  }
+
+  return ['success' => false];
+}
 
 
 
@@ -111,12 +129,17 @@ function vp_create_service($request) {
 
     $table = $wpdb->prefix . 'services';
 
-    $name       = sanitize_text_field($request['name']);
-    $categoryId = (int) $request['category_id'];
-    $price      = (float) $request['price'];
-    $duration   = sanitize_text_field($request['duration']);
-    $status     = isset($request['status']) ? (int) $request['status'] : 1;
+    $data = $request->get_json_params(); // ✅ correct
+
+    $name       = sanitize_text_field($data['name']);
+    $categoryId = (int) $data['category_id'];
+    $price      = (float) $data['price'];
+    $duration   = sanitize_text_field($data['duration']);
+    $status     = isset($data['status']) ? (int) $data['status'] : 1;
     $slug       = sanitize_title($name);
+
+    $featured = isset($data['featured_image']) ? esc_url_raw($data['featured_image']) : '';
+    $gallery  = isset($data['gallery_images']) ? json_encode($data['gallery_images']) : '[]';
 
     if (!$name || !$categoryId || !$price || !$duration) {
         return new WP_REST_Response([
@@ -132,6 +155,8 @@ function vp_create_service($request) {
         'price'       => $price,
         'duration'    => $duration,
         'status'      => $status,
+        'featured_image' => $featured,   // ✅ FIX
+        'gallery_images' => $gallery,    // ✅ FIX
         'created_at'  => current_time('mysql'),
         'updated_at'  => current_time('mysql'),
     ]);
@@ -139,28 +164,32 @@ function vp_create_service($request) {
     if (!$inserted) {
         return new WP_REST_Response([
             'success' => false,
-            'message' => 'Failed to create service'
+            'message' => $wpdb->last_error // 🔥 show actual error
         ], 500);
     }
 
     return [
         'success' => true,
-        'message' => 'Service created successfully',
-        'id'      => $wpdb->insert_id
+        'id' => $wpdb->insert_id
     ];
 }
 
 function vp_update_service($request) {
     global $wpdb;
 
-    $id    = (int) $request['id'];
     $table = $wpdb->prefix . 'services';
 
-    $name       = sanitize_text_field($request['name']);
-    $categoryId = (int) $request['category_id'];
-    $price      = (float) $request['price'];
-    $duration   = sanitize_text_field($request['duration']);
-    $status     = isset($request['status']) ? (int) $request['status'] : 1;
+    $data = $request->get_json_params(); // ✅ correct
+
+    $id         = (int) $request['id'];
+    $name       = sanitize_text_field($data['name']);
+    $categoryId = (int) $data['category_id'];
+    $price      = (float) $data['price'];
+    $duration   = sanitize_text_field($data['duration']);
+    $status     = isset($data['status']) ? (int) $data['status'] : 1;
+
+    $featured = isset($data['featured_image']) ? esc_url_raw($data['featured_image']) : '';
+    $gallery  = isset($data['gallery_images']) ? json_encode($data['gallery_images']) : '[]';
 
     if (!$name || !$categoryId || !$price || !$duration) {
         return new WP_REST_Response([
@@ -178,14 +207,15 @@ function vp_update_service($request) {
             'price'       => $price,
             'duration'    => $duration,
             'status'      => $status,
+            'featured_image' => $featured,   // ✅ FIX
+            'gallery_images' => $gallery,    // ✅ FIX
             'updated_at'  => current_time('mysql'),
         ],
         ['id' => $id]
     );
 
     return [
-        'success' => true,
-        'message' => 'Service updated successfully'
+        'success' => true
     ];
 }
 

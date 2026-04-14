@@ -20,6 +20,7 @@ require_once SALON_CORE_PATH . 'includes/api/services.php';
 require_once SALON_CORE_PATH . 'includes/api/staff.php';
 require_once SALON_CORE_PATH . 'includes/api/bookings.php';
 require_once SALON_CORE_PATH . 'includes/api/dashboard.php';
+require_once SALON_CORE_PATH . 'includes/api/packages.php';
 
 /* ADMIN */
 require_once SALON_CORE_PATH . 'includes/admin/menu.php';

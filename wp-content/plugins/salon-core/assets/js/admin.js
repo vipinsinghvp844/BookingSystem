@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const data = res.data;
 
       /* =========================
-         ✅ FIXED DATA BINDING
+          FIXED DATA BINDING
       ========================== */
 
       document.getElementById("totalRevenue").innerText =
@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
       /* =========================
-         📈 REVENUE CHART
+          REVENUE CHART
       ========================== */
 
       new Chart(document.getElementById("revenueChart"), {
@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
       /* =========================
-         📊 SERVICE CHART
+          SERVICE CHART
       ========================== */
 
       new Chart(document.getElementById("bookingChart"), {
@@ -73,55 +73,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-// service page js here 
-// document.addEventListener("DOMContentLoaded", function () {
-
-//   if (!document.getElementById("servicesTable")) return;
-
-//   // const services = [
-//   //   { id: 1, name: "Premium Hair Cut", category: "Hair", price: 85, duration: "60 min" },
-//   //   { id: 2, name: "Spa Treatment", category: "Spa", price: 150, duration: "90 min" },
-//   //   { id: 3, name: "Manicure & Pedicure", category: "Nails", price: 65, duration: "75 min" },
-//   // ];
-
-//   const table = document.getElementById("servicesTable");
-
-//   function render() {
-//     table.innerHTML = services.map(s => `
-//       <tr>
-//         <td>${s.name}</td>
-//         <td><span class="badge">${s.category}</span></td>
-//         <td>$${s.price}</td>
-//         <td>${s.duration}</td>
-//         <td><span class="status-active">Active</span></td>
-//         <td class="actions">
-//           <button>✏️</button>
-//           <button class="delete">🗑</button>
-//         </td>
-//       </tr>
-//     `).join("");
-//   }
-
-//   render();
-
-//   /* MODAL */
-//   const modal = document.getElementById("serviceModal");
-
-//   document.getElementById("addServiceBtn").onclick = () => {
-//     modal.classList.remove("hidden");
-//   };
-
-//   document.getElementById("closeModal").onclick = () => {
-//     modal.classList.add("hidden");
-//   };
-
-// });
 
 
-
-
-
-// services jspage
+// INIT 
 document.addEventListener("DOMContentLoaded", function () {
   initLucide();
   initDashboard();
@@ -129,6 +83,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // renderCalendar();
   loadBookings();
   loadCalendar();
+  loadPackages();
 });
 
 function initLucide() {
@@ -137,9 +92,9 @@ function initLucide() {
   }
 }
 
-/* =========================
-   DASHBOARD
-========================= */
+                                    /* =========================
+                                     DASHBOARD
+                                    ========================= */
 function initDashboard() {
   const revenueCanvas = document.getElementById("revenueChart");
   const bookingCanvas = document.getElementById("bookingChart");
@@ -203,7 +158,11 @@ function initDashboard() {
 function initServicesPage() {
   const table = document.getElementById("servicesTable");
   if (!table) return;
+  const featuredEl = document.getElementById("sFeatured");
+  const galleryEl = document.getElementById("sGallery");
 
+  let featuredFile = null;
+  let galleryFiles = [];
   const modal = document.getElementById("serviceModal");
   const addBtn = document.getElementById("addServiceBtn");
   const closeBtn = document.getElementById("closeModal");
@@ -244,13 +203,27 @@ function initServicesPage() {
     renderServices(filtered);
   });
 
-  saveBtn?.addEventListener("click", function () {
+  saveBtn?.addEventListener("click", async function () {
+     let featuredUrl = "";
+    let galleryUrls = [];
+
+      if (featuredFile) {
+        featuredUrl = await uploadFile(featuredFile);
+      }
+       if (galleryFiles.length) {
+      for (let f of galleryFiles) {
+      const url = await uploadFile(f);
+      galleryUrls.push(url);
+        }
+      }
     const payload = {
       name: nameEl.value.trim(),
       category_id: categoryEl.value,
       price: priceEl.value,
       duration: durationEl.value.trim(),
-      status: statusEl.value
+      status: statusEl.value,
+      featured_image: featuredUrl,
+      gallery_images: galleryUrls
     };
 
     const editId = serviceIdEl.value.trim();
@@ -292,6 +265,11 @@ function initServicesPage() {
   function renderServices(services) {
     table.innerHTML = services.map(service => `
       <tr>
+        <td>
+          ${service.featured_image 
+          ? `<img src="${service.featured_image}" style="width:40px;border-radius:6px;">` 
+          : "—"}
+        </td>
         <td>${escapeHtml(service.name)}</td>
         <td><span class="badge">${escapeHtml(service.category_name || "N/A")}</span></td>
         <td>$${service.price}</td>
@@ -418,71 +396,194 @@ function initServicesPage() {
       })[m];
     });
   }
+  featuredEl.addEventListener("change", function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  featuredFile = file;
+
+  const img = document.getElementById("previewFeatured");
+  img.src = URL.createObjectURL(file);
+  img.style.display = "block";
+});
+
+galleryEl.addEventListener("change", function () {
+  const files = [...this.files];
+  galleryFiles = files;
+
+  const box = document.getElementById("previewGallery");
+  box.innerHTML = "";
+
+  files.forEach(f => {
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(f);
+    img.style.width = "60px";
+    img.style.borderRadius = "6px";
+    box.appendChild(img);
+  });
+});
+}
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch("/e-commerce/wp-json/vp/v1/upload", {
+    method: "POST",
+    headers: { "X-WP-Nonce": SALON_ADMIN.nonce },
+    body: formData
+  });
+
+  const data = await res.json();
+  return data.url;
 }
 
-
 /* ====================================== CALENDAR ================= */
+
+let currentDate = new Date();
 
 function loadCalendar() {
 
   fetch("/e-commerce/wp-json/vp/v1/admin/calendar", {
-      method: "GET",
-       headers: {
-    "Content-Type": "application/json",
-    "X-WP-Nonce": SALON_ADMIN.nonce
-  }
-    })
-    .then(res => res.json())
-    .then(res => {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "X-WP-Nonce": SALON_ADMIN.nonce
+    }
+  })
+  .then(res => res.json())
+  .then(res => {
 
-      const bookings = res.data;
-      console.log(bookings,"booking");
-      
-      const grid = document.getElementById("calendarGrid");
+    const bookings = res.data || [];
+    const grid = document.getElementById("calendarGrid");
+    const monthLabel = document.getElementById("currentMonth");
 
-      if (!grid) return;
+    if (!grid || !monthLabel) return;
 
-      grid.innerHTML = "";
+    grid.innerHTML = "";
 
-      // current month
-      const date = new Date();
-      const year = date.getFullYear();
-      const month = date.getMonth();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
 
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
 
-      for (let i = 1; i <= daysInMonth; i++) {
+    const monthNames = [
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December"
+    ];
 
-        const dayStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+    monthLabel.innerText = `${monthNames[month]} ${year}`;
 
-        const dayBookings = bookings.filter(b => b.booking_date === dayStr);
+    const firstDay = new Date(year, month, 1).getDay(); 
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-        let eventsHTML = "";
+    /* ================= EMPTY CELLS ================= */
+    const startDay = firstDay === 0 ? 6 : firstDay - 1;
 
-        dayBookings.forEach(b => {
-          eventsHTML += `
-            <div class="event ${b.status}">
-              ${b.booking_time} - ${b.service_name}
-            </div>
-          `;
-        });
+    for (let i = 0; i < startDay; i++) {
+      grid.innerHTML += `<div class="calendar-day empty"></div>`;
+    }
 
-        grid.innerHTML += `
-          <div class="calendar-day">
-            <div class="day-number">${i}</div>
-            <div class="events">
-              ${eventsHTML}
-            </div>
+    /* ================= DAYS ================= */
+    for (let i = 1; i <= daysInMonth; i++) {
+
+      const dayStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+
+      const dayBookings = bookings.filter(b => b.booking_date === dayStr);
+
+      let eventsHTML = "";
+
+      dayBookings.slice(0, 2).forEach(b => {
+        eventsHTML += `
+          <div class="event ${b.status}">
+            ${b.booking_time}
           </div>
         `;
-      }
+      });
+
+      const isToday =
+        i === today.getDate() &&
+        month === today.getMonth() &&
+        year === today.getFullYear();
+
+      grid.innerHTML += `
+        <div class="calendar-day ${isToday ? "today" : ""}" data-date="${dayStr}">
+          <div class="day-number">${i}</div>
+
+          ${dayBookings.length > 0 ? `<div class="booking-count">${dayBookings.length}</div>` : ""}
+
+          <div class="events">${eventsHTML}</div>
+        </div>
+      `;
+    }
+
+    /* ================= CLICK EVENT ================= */
+    document.querySelectorAll(".calendar-day").forEach(day => {
+
+      day.addEventListener("click", () => {
+
+        const date = day.dataset.date;
+        if (!date) return;
+
+        const dayBookings = bookings.filter(b => b.booking_date === date);
+
+        let html = `<h3>Bookings (${date})</h3>`;
+
+        if (dayBookings.length === 0) {
+          html += `<p>No bookings</p>`;
+        } else {
+          dayBookings.forEach(b => {
+            html += `
+              <div style="margin-bottom:10px;">
+                <strong>${b.service_name}</strong><br>
+                ${b.booking_time}<br>
+                ${b.customer_name || ""}
+              </div>
+            `;
+          });
+        }
+
+        showPopup(html);
+
+      });
 
     });
+
+  });
 }
+function showPopup(content) {
+
+  const popup = document.createElement("div");
+  popup.className = "calendar-popup";
+
+  popup.innerHTML = `
+    <div class="popup-content">
+      ${content}
+      <button onclick="this.closest('.calendar-popup').remove()"
+        style="margin-top:10px;padding:8px 12px;background:#c9a96e;color:white;border:none;border-radius:8px;">
+        Close
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+}
+/* ==================================== BUTTON FIX ================= */
+document.addEventListener("click", function (e) {
+  // PREV
+  if (e.target.closest("#prevMonth")) {
+    currentDate.setMonth(currentDate.getMonth() - 1);
+    loadCalendar();
+  }
+  // NEXT
+  if (e.target.closest("#nextMonth")) {
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    loadCalendar();
+  }
+});
 
 
 
-/* ================= BOOKINGS PAGE ================= */
+/* ================================= BOOKINGS PAGE ================= */
 
 function loadBookings() {
 
@@ -548,4 +649,163 @@ function updateStatus(id, status) {
     loadBookings();
   });
 
+}
+
+
+// ===============================PACKAGES PAGE=============================
+let editId = null;
+
+/* LOAD PACKAGES */
+function loadPackages() {
+  fetch("/e-commerce/wp-json/vp/v1/admin/packages", {
+    headers: { "X-WP-Nonce": SALON_ADMIN.nonce }
+  })
+  .then(res => res.json())
+  .then(res => {
+
+    const grid = document.getElementById("packagesGrid");
+    grid.innerHTML = "";
+
+    res.data.forEach(p => {
+
+      grid.innerHTML += `
+        <div class="package-card">
+        <span class="badge">Package</span>
+          <h3>${p.name}</h3>
+          <p class="price">₹${p.price}</p>
+
+          <div class="package-meta">
+            ${p.duration} ${p.duration_type} • 
+            ${p.discount_percent}% off • 
+            ${p.max_bookings || "Unlimited"} bookings
+          </div>
+
+          <div class="card-actions">
+            <button onclick="editPackage(${p.id})">Edit</button>
+            <button onclick="deletePackage(${p.id})">Delete</button>
+          </div>
+        </div>
+      `;
+    });
+
+  });
+}
+
+/* EDIT */
+function editPackage(id) {
+
+  fetch("/e-commerce/wp-json/vp/v1/admin/packages", {
+    headers: { "X-WP-Nonce": SALON_ADMIN.nonce }
+  })
+  .then(res => res.json())
+  .then(res => {
+
+    const pkg = res.data.find(p => p.id == id);
+    if (!pkg) {
+      alert("Package not found");
+      return;
+    }
+    editId = id;
+     loadServicesDropdown(pkg.services || []);
+
+    pName.value = pkg.name;
+    pDesc.value = pkg.description;
+    pPrice.value = pkg.price;
+    pDuration.value = pkg.duration;
+    pDurationType.value = pkg.duration_type;
+    pDiscount.value = pkg.discount_percent;
+    pMaxBookings.value = pkg.max_bookings;
+    packageModal.classList.remove("hidden");
+  });
+}
+
+/* DELETE */
+function deletePackage(id) {
+  if (!confirm("Delete?")) return;
+
+  fetch(`/e-commerce/wp-json/vp/v1/admin/packages/${id}`, {
+    method: "DELETE",
+    headers: { "X-WP-Nonce": SALON_ADMIN.nonce }
+  })
+  .then(() => loadPackages());
+}
+
+/* SAVE */
+document.getElementById("savePackage").onclick = () => {
+
+  const services = [...document.querySelectorAll("#pServicesBox input:checked")]
+  .map(el => Number(el.value));
+  
+
+  const data = {
+    name: pName.value,
+    description: pDesc.value,
+    price: pPrice.value,
+    duration_type: pDurationType.value,
+    duration: pDuration.value,
+    discount: pDiscount.value,
+    max_bookings: pMaxBookings.value,
+    services
+  };
+
+  const url = editId
+    ? `/e-commerce/wp-json/vp/v1/admin/packages/${editId}`
+    : `/e-commerce/wp-json/vp/v1/admin/packages`;
+
+  const method = editId ? "PUT" : "POST";
+
+  fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "X-WP-Nonce": SALON_ADMIN.nonce
+    },
+    body: JSON.stringify(data)
+  })
+  .then(() => {
+    packageModal.classList.add("hidden");
+    editId = null;
+    loadPackages();
+  });
+};
+
+/* MODAL */
+openPackageModal.onclick = () => {
+  editId = null;
+  document.getElementById("modalTitle").innerText = "Add Package";
+
+  loadServicesDropdown([]); // empty
+
+  packageModal.classList.remove("hidden");
+};
+
+closePackageModal.onclick = () => {
+  packageModal.classList.add("hidden");
+};
+
+/* SERVICES */
+function loadServicesDropdown(selected = []) {
+
+  fetch("/e-commerce/wp-json/vp/v1/services")
+    .then(res => res.json())
+    .then(res => {
+
+      const box = document.getElementById("pServicesBox");
+      box.innerHTML = "";
+
+      const selectedIds = selected.map(Number); // 🔥 IMPORTANT
+
+      res.data.forEach(s => {
+
+        const isChecked = selectedIds.includes(Number(s.id)) ? "checked" : "";
+
+        box.innerHTML += `
+          <label class="service-item">
+            <input type="checkbox" value="${s.id}" ${isChecked}>
+            ${s.name}
+          </label>
+        `;
+      });
+
+    });
 }

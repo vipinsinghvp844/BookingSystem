@@ -19,6 +19,7 @@ function salon_admin_services_page() {
     <table>
       <thead>
         <tr>
+          <th>S Image</th>
           <th>Service Name</th>
           <th>Category</th>
           <th>Price</th>
@@ -38,6 +39,10 @@ function salon_admin_services_page() {
       <h3 id="serviceModalTitle">Add New Service</h3>
 
       <input id="serviceId" type="hidden">
+      <!-- FEATURED IMAGE -->
+      <label>Featured Image</label>
+      <input type="file" id="sFeatured" accept="image/*">
+      <img id="previewFeatured" style="width:80px; margin-top:10px; display:none;" />
 
       <input id="sName" type="text" placeholder="Service Name">
       
@@ -47,7 +52,10 @@ function salon_admin_services_page() {
 
       <input id="sPrice" type="number" placeholder="Price">
       <input id="sDuration" type="text" placeholder="Duration (60 min)">
-
+      <!-- GALLERY -->
+      <label>Gallery Images</label>
+      <input type="file" id="sGallery" multiple accept="image/*">
+      <div id="previewGallery" style="display:flex; gap:10px; margin-top:10px;"></div>
       <select id="sStatus">
         <option value="1">Active</option>
         <option value="0">Inactive</option>

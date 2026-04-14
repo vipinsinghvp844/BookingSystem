@@ -2,63 +2,51 @@
 function salon_admin_packages_page() {
   salon_admin_layout(function () {
 ?>
+<div class="admin-header">
+  <h1>Manage Packages</h1>
 
-<div class="admin-layout">
-
-  <main class="admin-content">
-
-    <!-- HEADER -->
-    <div class="admin-header">
-      <h1>Manage Packages</h1>
-
-      <button class="btn-primary">
-        + Add Package
-      </button>
-    </div>
-
-    <!-- GRID -->
-    <div class="packages-grid">
-
-      <!-- CARD -->
-      <div class="package-card">
-        <h3>Beauty Essentials</h3>
-        <p class="price">$199/mo</p>
-        <p class="members">45 active members</p>
-
-        <div class="card-actions">
-          <button class="btn-light">✏ Edit</button>
-          <button class="btn-danger">🗑</button>
-        </div>
-      </div>
-
-      <div class="package-card">
-        <h3>Premium Luxury</h3>
-        <p class="price">$399/mo</p>
-        <p class="members">89 active members</p>
-
-        <div class="card-actions">
-          <button class="btn-light">✏ Edit</button>
-          <button class="btn-danger">🗑</button>
-        </div>
-      </div>
-
-      <div class="package-card">
-        <h3>Royal Treatment</h3>
-        <p class="price">$699/mo</p>
-        <p class="members">23 active members</p>
-
-        <div class="card-actions">
-          <button class="btn-light">✏ Edit</button>
-          <button class="btn-danger">🗑</button>
-        </div>
-      </div>
-
-    </div>
-
-  </main>
-
+  <button id="openPackageModal" class="btn-primary">
+    + Add Package
+  </button>
 </div>
 
+<div class="packages-grid" id="packagesGrid"></div>
+
+<!-- MODAL -->
+<div id="packageModal" class="modal hidden">
+  <div class="modal-content">
+
+    <h3 id="modalTitle">Add Package</h3>
+
+    <input id="pName" placeholder="Package Name">
+    <textarea id="pDesc" placeholder="Description" style="width:100%;"></textarea>
+  <label>Select Services</label>
+
+<div id="pServicesBox" class="services-box">
+  <!-- checkbox list JS se fill hogi -->
+</div>
+    <div class="form-row">
+      <input id="pPrice" type="number" placeholder="Price">
+      <input id="pDiscount" type="number" placeholder="Discount %">
+    </div>
+
+    <div class="form-row">
+      <select id="pDurationType">
+        <option value="months">Months</option>
+        <option value="days">Days</option>
+      </select>
+
+      <input id="pDuration" type="number" placeholder="Duration">
+    </div>
+
+    <input id="pMaxBookings" type="number" placeholder="Max Bookings">
+    <div class="modal-actions">
+      <button id="closePackageModal" class="btn-outline">Cancel</button>
+      <button id="savePackage" class="btn-primary">Save</button>
+    </div>
+
+  </div>
+</div>
 <?php
   });
 }

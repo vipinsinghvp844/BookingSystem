@@ -54,35 +54,72 @@ function vp_get_bookings($request) {
         'data' => $results
     ];
 }
-function vp_complete_booking($request) {
+function vp_complete_booking($req) {
+
   global $wpdb;
 
-  $booking_table = $wpdb->prefix . 'bookings';
-  $payment_table = $wpdb->prefix . 'payments';
+  $data = $req->get_json_params();
 
-  // SAVE BOOKING
-  $wpdb->insert($booking_table, [
-    'service_id' => $request['service_id'],
-    'staff_id' => $request['staff_id'],
-    'booking_date' => $request['date'],
-    'booking_time' => $request['time'],
+  $user_id = get_current_user_id();
+
+  $service_id = intval($data['service_id']);
+
+  // 🔥 1. check active package
+  $pkg = $wpdb->get_row("
+    SELECT * FROM wp_salon_customer_packages
+    WHERE customer_id = $user_id
+    AND status = 'active'
+    AND remaining_bookings > 0
+    AND CURDATE() BETWEEN start_date AND end_date
+    ORDER BY id DESC
+    LIMIT 1
+  ");
+
+  $use_package = false;
+
+  if ($pkg) {
+
+    // 🔥 2. check service allowed
+    $allowed = $wpdb->get_var("
+      SELECT COUNT(*) FROM wp_salon_package_services
+      WHERE package_id = {$pkg->package_id}
+      AND service_id = $service_id
+    ");
+
+    if ($allowed) {
+      $use_package = true;
+    }
+
+  }
+
+  // 🔥 3. insert booking
+  $wpdb->insert('wp_salon_bookings', [
+    'customer_id' => $user_id,
+    'service_id' => $service_id,
+    'staff_id' => $data['staff_id'],
+    'booking_date' => $data['date'],
+    'booking_time' => $data['time'],
+    'amount' => $use_package ? 0 : $data['amount'],
+    'payment_method' => $data['method'],
+    'transaction_id' => $data['transaction_id'],
+    'package_id' => $use_package ? $pkg->package_id : null,
+    'is_package_used' => $use_package ? 1 : 0,
     'status' => 'confirmed'
   ]);
 
-  $booking_id = $wpdb->insert_id;
+  // 🔥 4. reduce booking
+  if ($use_package) {
+    $wpdb->query("
+      UPDATE wp_salon_customer_packages
+      SET remaining_bookings = remaining_bookings - 1
+      WHERE id = {$pkg->id}
+    ");
+  }
 
-  // SAVE PAYMENT
-  $wpdb->insert($payment_table, [
-    'booking_id' => $booking_id,
-    'service_id' => $request['service_id'],
-    'staff_id' => $request['staff_id'],
-    'amount' => $request['amount'],
-    'payment_method' => $request['method'],
-    'transaction_id' => $request['transaction_id'],
-    'status' => 'paid'
-  ]);
-
-  return ['success'=>true];
+  return [
+    'success' => true,
+    'used_package' => $use_package
+  ];
 }
 function vp_create_booking($request) {
     global $wpdb;
@@ -152,4 +189,34 @@ function vp_get_calendar_data() {
     'success' => true,
     'data' => $results
   ];
+}
+
+function use_package_if_available($customer_id, $service_id) {
+  global $wpdb;
+
+  $pkg = $wpdb->get_row("
+    SELECT cp.*, ps.service_id 
+    FROM wp_salon_customer_packages cp
+    JOIN wp_salon_package_services ps 
+      ON cp.package_id = ps.package_id
+    WHERE cp.customer_id = $customer_id
+      AND ps.service_id = $service_id
+      AND cp.status = 'active'
+      AND cp.remaining_bookings > 0
+      AND cp.end_date >= CURDATE()
+    LIMIT 1
+  ");
+
+  if ($pkg) {
+    // 🔥 reduce usage
+    $wpdb->query("
+      UPDATE wp_salon_customer_packages
+      SET remaining_bookings = remaining_bookings - 1
+      WHERE id = $pkg->id
+    ");
+
+    return true; // package used
+  }
+
+  return false;
 }
